@@ -1,0 +1,27 @@
+# Qt Creator
+.qtcreator/
+*.pro.user
+*.pro.user.*
+
+# Build / deploy
+build/
+dist/
+cmake-build-*/
+
+# Binaries
+*.exe
+*.dll
+*.obj
+*.o
+*.a
+*.lib
+*.pdb
+
+# Archives
+*.zip
+*.7z
+*.rar
+
+# OS files
+Thumbs.db
+.DS_Store
