@@ -2,11 +2,13 @@
 
 #include <QLabel>
 #include <QListWidget>
+#include <QPushButton>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFont>
 #include <QTimer>
 #include <QDateTime>
+#include <QMessageBox>
 #include <Qt>
 
 OrderStatusWidget::OrderStatusWidget(DatabaseManager *databaseManager, QWidget *parent)
@@ -21,7 +23,9 @@ OrderStatusWidget::OrderStatusWidget(DatabaseManager *databaseManager, QWidget *
     m_orderNumberLabel(nullptr),
     m_drinkNameLabel(nullptr),
     m_statusLabel(nullptr),
-    m_remainingTimeLabel(nullptr)
+    m_remainingTimeLabel(nullptr),
+    m_repeatButton(nullptr),
+    m_cancelButton(nullptr)
 {
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(40, 32, 40, 32);
@@ -61,6 +65,16 @@ OrderStatusWidget::OrderStatusWidget(DatabaseManager *databaseManager, QWidget *
     m_remainingTimeLabel->setAlignment(Qt::AlignCenter);
     m_remainingTimeLabel->setWordWrap(true);
 
+    QHBoxLayout *actionsLayout = new QHBoxLayout;
+    actionsLayout->setSpacing(10);
+    actionsLayout->setContentsMargins(0, 0, 0, 0);
+
+    m_repeatButton = new QPushButton("Повторить заказ", this);
+    m_cancelButton = new QPushButton("Отменить заказ", this);
+
+    actionsLayout->addWidget(m_repeatButton);
+    actionsLayout->addWidget(m_cancelButton);
+
     layout->addWidget(m_titleLabel);
     layout->addWidget(historyTitleLabel);
     layout->addWidget(m_historyListWidget);
@@ -69,6 +83,7 @@ OrderStatusWidget::OrderStatusWidget(DatabaseManager *databaseManager, QWidget *
     layout->addWidget(m_drinkNameLabel);
     layout->addWidget(m_statusLabel);
     layout->addWidget(m_remainingTimeLabel);
+    layout->addLayout(actionsLayout);
     layout->addStretch();
 
     connect(m_historyListWidget, &QListWidget::currentRowChanged,
@@ -80,6 +95,17 @@ OrderStatusWidget::OrderStatusWidget(DatabaseManager *databaseManager, QWidget *
                 m_orderId = m_orders.at(row).id;
                 loadOrder();
             });
+
+    connect(m_historyListWidget, &QListWidget::itemDoubleClicked,
+            this, [this](QListWidgetItem *) {
+                repeatCurrentOrder();
+            });
+
+    connect(m_repeatButton, &QPushButton::clicked,
+            this, &OrderStatusWidget::repeatCurrentOrder);
+
+    connect(m_cancelButton, &QPushButton::clicked,
+            this, &OrderStatusWidget::cancelCurrentOrder);
 
     connect(m_timer, &QTimer::timeout,
             this, [this]() {
@@ -106,6 +132,8 @@ void OrderStatusWidget::setOrderId(int orderId)
 void OrderStatusWidget::loadOrdersHistory()
 {
     if (m_databaseManager == nullptr) {
+        m_repeatButton->setEnabled(false);
+        m_cancelButton->setEnabled(false);
         return;
     }
 
@@ -148,6 +176,10 @@ void OrderStatusWidget::loadOrdersHistory()
     }
 
     m_historyListWidget->blockSignals(false);
+
+    const bool hasOrders = !m_orders.isEmpty();
+    m_repeatButton->setEnabled(hasOrders);
+    m_cancelButton->setEnabled(hasOrders);
 }
 
 void OrderStatusWidget::loadOrder()
@@ -157,6 +189,8 @@ void OrderStatusWidget::loadOrder()
         m_drinkNameLabel->clear();
         m_statusLabel->clear();
         m_remainingTimeLabel->clear();
+        m_repeatButton->setEnabled(false);
+        m_cancelButton->setEnabled(false);
         return;
     }
 
@@ -165,6 +199,8 @@ void OrderStatusWidget::loadOrder()
         m_drinkNameLabel->clear();
         m_statusLabel->clear();
         m_remainingTimeLabel->clear();
+        m_repeatButton->setEnabled(false);
+        m_cancelButton->setEnabled(false);
         return;
     }
 
@@ -173,6 +209,8 @@ void OrderStatusWidget::loadOrder()
     if (m_order.id <= 0) {
         m_statusLabel->setText("Не удалось загрузить заказ");
         m_remainingTimeLabel->setText(m_databaseManager->lastError());
+        m_repeatButton->setEnabled(false);
+        m_cancelButton->setEnabled(false);
         return;
     }
 
@@ -187,18 +225,23 @@ void OrderStatusWidget::updateVisualStatus()
             ? m_order.drinkName
             : QString("%1\nКлиент: %2").arg(m_order.drinkName, m_order.customerName)
         );
+    m_repeatButton->setEnabled(true);
 
     if (m_order.status == "cancelled") {
         m_statusLabel->setText("Заказ отменён");
         m_remainingTimeLabel->setText("Этот заказ не будет приготовлен");
+        m_cancelButton->setEnabled(false);
         return;
     }
 
     if (m_order.status == "ready") {
         m_statusLabel->setText("Ваш напиток готов!");
         m_remainingTimeLabel->setText("Можно забирать BooBooCan");
+        m_cancelButton->setEnabled(false);
         return;
     }
+
+    m_cancelButton->setEnabled(true);
 
     QDateTime now = QDateTime::currentDateTime();
     qint64 elapsedSeconds = m_order.createdAt.secsTo(now);
@@ -229,6 +272,38 @@ void OrderStatusWidget::updateVisualStatus()
     m_remainingTimeLabel->setText(
         QString("Осталось примерно %1 сек.").arg(remainingSeconds)
         );
+}
+
+void OrderStatusWidget::cancelCurrentOrder()
+{
+    if (m_databaseManager == nullptr || m_orderId <= 0) {
+        return;
+    }
+
+    if (!m_databaseManager->updateOrderStatus(m_orderId, "cancelled")) {
+        QMessageBox::critical(this, "Отмена заказа", m_databaseManager->lastError());
+        return;
+    }
+
+    loadOrdersHistory();
+    loadOrder();
+}
+
+void OrderStatusWidget::repeatCurrentOrder()
+{
+    if (m_databaseManager == nullptr || m_orderId <= 0) {
+        return;
+    }
+
+    const int newOrderId = m_databaseManager->repeatOrderAndReturnId(m_orderId);
+
+    if (newOrderId <= 0) {
+        QMessageBox::critical(this, "Повтор заказа", m_databaseManager->lastError());
+        return;
+    }
+
+    QMessageBox::information(this, "Повтор заказа", "Новый заказ создан");
+    setOrderId(newOrderId);
 }
 
 QString OrderStatusWidget::localizedStatus(const QString &status) const

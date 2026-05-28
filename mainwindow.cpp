@@ -68,6 +68,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_orderStatusWidget(nullptr)
 {
     QWidget *centralWidget = new QWidget(this);
+    centralWidget->setObjectName("mainCentralWidget");
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
     mainLayout->setContentsMargins(0, 0, 0, 0);
 
@@ -278,11 +279,8 @@ void MainWindow::applyTheme(const QString &theme)
     if (theme == "Тёмная") {
         qApp->setStyleSheet(
             QString(
-                "QMainWindow { "
-                "background-image: url(%1); "
-                "background-position: center; "
-                "background-repeat: no-repeat; "
-                "}"
+                "QMainWindow { background-color: #121212; }"
+                "QWidget#mainCentralWidget { border-image: url(%1) 0 0 0 0 stretch stretch; }"
 
                 "QWidget { background-color: transparent; color: #F5F5F5; }"
 
@@ -326,11 +324,8 @@ void MainWindow::applyTheme(const QString &theme)
     } else {
         qApp->setStyleSheet(
             QString(
-                "QMainWindow { "
-                "background-image: url(%1); "
-                "background-position: center; "
-                "background-repeat: no-repeat; "
-                "}"
+                "QMainWindow { background-color: #F8F8F8; }"
+                "QWidget#mainCentralWidget { border-image: url(%1) 0 0 0 0 stretch stretch; }"
 
                 "QWidget { background-color: transparent; color: #222222; }"
 

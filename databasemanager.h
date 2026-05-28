@@ -56,6 +56,7 @@ public:
                                           double totalPrice,
                                           int estimatedMinutes,
                                           const QString &customerName = QString());
+    int repeatOrderAndReturnId(int orderId);
 
     Order getOrderById(int orderId);
 

@@ -9,6 +9,7 @@
 
 class QLabel;
 class QListWidget;
+class QPushButton;
 class QTimer;
 
 class OrderStatusWidget : public QWidget
@@ -25,6 +26,8 @@ private:
     void loadOrder();
     void updateVisualStatus();
     QString localizedStatus(const QString &status) const;
+    void cancelCurrentOrder();
+    void repeatCurrentOrder();
 
     DatabaseManager *m_databaseManager;
     QList<Order> m_orders;
@@ -38,6 +41,8 @@ private:
     QLabel *m_drinkNameLabel;
     QLabel *m_statusLabel;
     QLabel *m_remainingTimeLabel;
+    QPushButton *m_repeatButton;
+    QPushButton *m_cancelButton;
 };
 
 #endif // ORDERSTATUSWIDGET_H

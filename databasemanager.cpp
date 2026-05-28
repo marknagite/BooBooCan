@@ -469,3 +469,43 @@ int DatabaseManager::createCustomDrinkOrderAndReturnId(const QString &size,
     m_lastError.clear();
     return query.value(0).toInt();
 }
+
+int DatabaseManager::repeatOrderAndReturnId(int orderId)
+{
+    if (!m_database.isOpen()) {
+        m_lastError = "База данных не подключена";
+        return -1;
+    }
+
+    if (orderId <= 0) {
+        m_lastError = "Некорректный номер заказа";
+        return -1;
+    }
+
+    const QString sql = QString(
+                            "INSERT INTO public.orders "
+                            "(order_type, ready_drink_id, drink_name, composition, size, temperature, "
+                            "total_price, status, estimated_minutes, customer_name) "
+                            "SELECT "
+                            "order_type, ready_drink_id, drink_name, composition, size, temperature, "
+                            "total_price, 'new', estimated_minutes, customer_name "
+                            "FROM public.orders "
+                            "WHERE id = %1 "
+                            "RETURNING id"
+                            ).arg(orderId);
+
+    QSqlQuery query(m_database);
+
+    if (!query.exec(sql)) {
+        m_lastError = query.lastError().text();
+        return -1;
+    }
+
+    if (!query.next()) {
+        m_lastError = "Не удалось повторить заказ";
+        return -1;
+    }
+
+    m_lastError.clear();
+    return query.value(0).toInt();
+}
